@@ -194,6 +194,13 @@ def init_db():
         FOREIGN KEY (defect_id) REFERENCES defects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS exec_logs (
+        exec_id TEXT PRIMARY KEY,
+        logs TEXT NOT NULL DEFAULT '[]',
+        done INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -766,7 +773,34 @@ def update_instance_status(iid):
     return jsonify({'message':'Updated'})
 
 # ─── Automated execution ──────────────────────────────────────────────────────
-execution_logs = {}
+# DB-backed execution logs (works across multiple gunicorn workers)
+def exec_log_init(exec_id):
+    conn = get_db()
+    conn.execute("INSERT OR REPLACE INTO exec_logs (exec_id,logs,done,created_at) VALUES (?,?,0,?)",
+                 (exec_id, '[]', datetime.utcnow().isoformat()))
+    conn.commit(); conn.close()
+
+def exec_log_append(exec_id, entry):
+    conn = get_db()
+    row = conn.execute("SELECT logs FROM exec_logs WHERE exec_id=?", (exec_id,)).fetchone()
+    if row:
+        logs = json.loads(row[0])
+        logs.append(entry)
+        conn.execute("UPDATE exec_logs SET logs=? WHERE exec_id=?", (json.dumps(logs), exec_id))
+        conn.commit()
+    conn.close()
+
+def exec_log_done(exec_id):
+    conn = get_db()
+    conn.execute("UPDATE exec_logs SET done=1 WHERE exec_id=?", (exec_id,))
+    conn.commit(); conn.close()
+
+def exec_log_get(exec_id):
+    conn = get_db()
+    row = conn.execute("SELECT logs,done FROM exec_logs WHERE exec_id=?", (exec_id,)).fetchone()
+    conn.close()
+    if not row: return None, None
+    return json.loads(row[0]), bool(row[1])
 
 @app.route('/api/instances/<iid>/execute', methods=['POST'])
 def execute_instance(iid):
@@ -785,7 +819,7 @@ def execute_instance(iid):
     # Selenium/browser automation cannot run on Render cloud servers (no display/browser)
     if _IS_RENDER:
         exec_id = str(uuid.uuid4())
-        execution_logs[exec_id] = []
+        exec_log_init(exec_id)
         def cloud_note():
             msgs = [
                 {'type':'warning','msg':'⚠ Cloud Execution Notice'},
@@ -804,16 +838,17 @@ def execute_instance(iid):
             ]
             time.sleep(0.3)
             for m in msgs:
-                execution_logs[exec_id].append(m)
+                exec_log_append(exec_id, m)
                 time.sleep(0.1)
-            execution_logs[exec_id].append({'type':'done','status':'Not Run','msg':''})
+            exec_log_append(exec_id, {'type':'done','status':'Not Run','msg':''})
+            exec_log_done(exec_id)
         t = threading.Thread(target=cloud_note)
         t.daemon = True
         t.start()
         return jsonify({'exec_id': exec_id})
 
     exec_id = str(uuid.uuid4())
-    execution_logs[exec_id] = []
+    exec_log_init(exec_id)
 
     def run_code():
         code_str = inst['automation_code']
@@ -832,7 +867,7 @@ def execute_instance(iid):
         log_lines = []
 
         def log(type_, msg):
-            execution_logs[exec_id].append({'type': type_, 'msg': msg})
+            exec_log_append(exec_id, {'type': type_, 'msg': msg})
             ts = datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]
             log_lines.append(f"[{ts}] [{type_.upper()}] {msg}")
 
@@ -890,7 +925,8 @@ def execute_instance(iid):
                    (status, s['username'], executed_at, iid))
         db.commit()
         db.close()
-        execution_logs[exec_id].append({'type':'done','msg':status})
+        exec_log_append(exec_id, {'type':'done','msg':status,'status':status})
+        exec_log_done(exec_id)
 
     t = threading.Thread(target=run_code)
     t.start()
@@ -930,10 +966,9 @@ def stream_execution(exec_id):
 def poll_execution(exec_id):
     s, err, code = require_auth(request)
     if err: return err, code
-    logs = execution_logs.get(exec_id, None)
+    logs, done = exec_log_get(exec_id)
     if logs is None:
         return jsonify({'error': 'Not found'}), 404
-    done = any(e.get('type') == 'done' for e in logs)
     return jsonify({'logs': logs, 'done': done})
 
 # ─── Defects ──────────────────────────────────────────────────────────────────
