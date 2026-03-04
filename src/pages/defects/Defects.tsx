@@ -95,7 +95,7 @@ export default function Defects() {
           <h1 style={{ fontFamily:'Syne', fontWeight:800, fontSize:20, color:'var(--text)' }}>Defects</h1>
           <p style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>{defects.length} total</p>
         </div>
-        {isTester && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> Log Defect</button>
+        {isTester && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> Log Defect</button>}
       </div>
 
       <div className="flex gap-3">
