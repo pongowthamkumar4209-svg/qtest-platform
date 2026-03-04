@@ -10,6 +10,8 @@ services:
         value: 3.11.0
       - key: RENDER
         value: true
+      - key: FRONTEND_URL
+        value: https://qtest-platform.vercel.app
     disk:
       name: qtest-data
       mountPath: /opt/render/project/data

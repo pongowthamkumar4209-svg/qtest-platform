@@ -5,7 +5,32 @@ from flask_cors import CORS
 import sqlite3
 
 app = Flask(__name__)
-CORS(app, origins="*", supports_credentials=True)
+
+# Explicit CORS - wildcard + credentials is blocked by browsers
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://qtest-platform.vercel.app",
+    os.environ.get("FRONTEND_URL", ""),
+]
+CORS(app,
+     origins=[o for o in ALLOWED_ORIGINS if o],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
+# Also handle preflight OPTIONS globally
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        origin = request.headers.get("Origin", "")
+        if any(origin == o for o in ALLOWED_ORIGINS if o):
+            resp = app.make_default_options_response()
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            return resp
 
 # On Render, use /opt/render/project/data for persistent storage
 # Locally, use the backend folder itself
