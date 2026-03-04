@@ -194,6 +194,18 @@ def init_db():
         FOREIGN KEY (defect_id) REFERENCES defects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS agent_jobs (
+        id TEXT PRIMARY KEY,
+        exec_id TEXT NOT NULL,
+        instance_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        framework TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT,
+        claimed_at TEXT,
+        agent_id TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS exec_logs (
         exec_id TEXT PRIMARY KEY,
         logs TEXT NOT NULL DEFAULT '[]',
@@ -970,6 +982,79 @@ def poll_execution(exec_id):
     if logs is None:
         return jsonify({'error': 'Not found'}), 404
     return jsonify({'logs': logs, 'done': done})
+
+# ─── Agent Execution API ──────────────────────────────────────────────────────
+# Local execution agent polls these endpoints to run Selenium on tester's PC
+
+@app.route('/api/agent/claim', methods=['POST'])
+def agent_claim():
+    """Agent polls this to claim a pending job"""
+    data = request.json or {}
+    agent_id = data.get('agent_id', 'unknown')
+    conn = get_db()
+    job = row_to_dict(conn.execute(
+        "SELECT * FROM agent_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+    ).fetchone())
+    if not job:
+        conn.close()
+        return jsonify({'job': None})
+    conn.execute(
+        "UPDATE agent_jobs SET status='running', claimed_at=?, agent_id=? WHERE id=?",
+        (datetime.utcnow().isoformat(), agent_id, job['id'])
+    )
+    conn.commit(); conn.close()
+    return jsonify({'job': job})
+
+@app.route('/api/agent/log', methods=['POST'])
+def agent_log():
+    """Agent streams log lines back"""
+    data = request.json or {}
+    exec_id = data.get('exec_id')
+    entry   = data.get('entry')
+    if exec_id and entry:
+        exec_log_append(exec_id, entry)
+    return jsonify({'ok': True})
+
+@app.route('/api/agent/complete', methods=['POST'])
+def agent_complete():
+    """Agent reports job done"""
+    data      = request.json or {}
+    exec_id   = data.get('exec_id')
+    job_id    = data.get('job_id')
+    status    = data.get('status', 'Failed')
+    duration  = data.get('duration_ms', 0)
+    if exec_id:
+        exec_log_append(exec_id, {'type':'done','msg':'','status':status})
+        exec_log_done(exec_id)
+    if job_id:
+        conn = get_db()
+        conn.execute("UPDATE agent_jobs SET status='done' WHERE id=?", (job_id,))
+        conn.commit(); conn.close()
+    # Update instance status
+    instance_id = data.get('instance_id')
+    if instance_id:
+        conn = get_db()
+        s = get_session(request)
+        executed_by = s['username'] if s else 'agent'
+        conn.execute(
+            "UPDATE test_instances SET status=?, executed_by=?, executed_at=? WHERE id=?",
+            (status, executed_by, datetime.utcnow().isoformat(), instance_id)
+        )
+        # Save execution run record
+        run_count = conn.execute("SELECT COUNT(*) FROM execution_runs WHERE instance_id=?", (instance_id,)).fetchone()[0]
+        run_seq   = f"RUN-{run_count+1:04d}"
+        conn.execute(
+            "INSERT INTO execution_runs (id,run_id,instance_id,status,executed_by,executed_at,duration_ms,framework) VALUES (?,?,?,?,?,?,?,?)",
+            (str(uuid.uuid4()), run_seq, instance_id, status, executed_by,
+             datetime.utcnow().isoformat(), duration, data.get('framework','selenium'))
+        )
+        conn.commit(); conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/api/agent/ping', methods=['GET'])
+def agent_ping():
+    """Health check for agent connectivity"""
+    return jsonify({'ok': True, 'time': datetime.utcnow().isoformat()})
 
 # ─── Defects ──────────────────────────────────────────────────────────────────
 def next_defect_id(conn):
