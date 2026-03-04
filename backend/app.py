@@ -900,18 +900,31 @@ def execute_instance(iid):
 def stream_execution(exec_id):
     def generate():
         sent = 0
-        while True:
+        deadline = time.time() + 180  # max 3 min stream, prevents gunicorn timeout
+        while time.time() < deadline:
             logs = execution_logs.get(exec_id, [])
             while sent < len(logs):
                 entry = logs[sent]
                 yield f"data: {json.dumps(entry)}\n\n"
                 sent += 1
-                if entry['type'] == 'done':
+                if entry.get('type') == 'done':
                     return
-            time.sleep(0.2)
-    return Response(stream_with_context(generate()),
+            # Send keepalive comment every poll so connection stays alive
+            yield ': keepalive\n\n'
+            time.sleep(0.5)
+        # Timeout - send done so frontend doesn't hang
+        yield f"data: {json.dumps({'type':'done','status':'Failed','msg':'Stream timeout'})}\n\n"
+    origin = request.headers.get('Origin', '')
+    resp = Response(stream_with_context(generate()),
                     content_type='text/event-stream',
-                    headers={'Cache-Control':'no-cache','X-Accel-Buffering':'no'})
+                    headers={
+                        'Cache-Control': 'no-cache',
+                        'X-Accel-Buffering': 'no',
+                        'Connection': 'keep-alive',
+                        'Access-Control-Allow-Origin': origin if origin else '*',
+                        'Access-Control-Allow-Credentials': 'true',
+                    })
+    return resp
 
 # ─── Defects ──────────────────────────────────────────────────────────────────
 def next_defect_id(conn):
