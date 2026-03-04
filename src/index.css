@@ -96,3 +96,45 @@ body {
 .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .modal-body { padding: 20px 24px; }
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Mobile Responsive ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Page padding on mobile */
+  .page-container {
+    padding: 16px !important;
+  }
+
+  /* Tables scroll horizontally */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Stack grid cards */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Modals full width */
+  .modal-box {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 0 auto;
+  }
+
+  /* Hide long text on small screens */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Buttons full width in forms */
+  .btn-full-mobile {
+    width: 100% !important;
+  }
+
+  /* Reduce font sizes slightly */
+  h1, .page-title {
+    font-size: 1.4rem !important;
+  }
+}
