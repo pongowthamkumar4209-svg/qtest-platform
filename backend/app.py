@@ -782,6 +782,36 @@ def execute_instance(iid):
     if not inst['automation_code']:
         return jsonify({'error':'No automation code found'}), 400
 
+    # Selenium/browser automation cannot run on Render cloud servers (no display/browser)
+    if _IS_RENDER:
+        exec_id = str(uuid.uuid4())
+        execution_logs[exec_id] = []
+        def cloud_note():
+            msgs = [
+                {'type':'warning','msg':'⚠ Cloud Execution Notice'},
+                {'type':'info',   'msg':'─' * 50},
+                {'type':'info',   'msg':'This test case uses Selenium browser automation.'},
+                {'type':'info',   'msg':'Browser automation requires a local machine with'},
+                {'type':'info',   'msg':'a browser and WebDriver installed.'},
+                {'type':'info',   'msg':''},
+                {'type':'info',   'msg':'To run this test:'},
+                {'type':'info',   'msg':'  1. Download the automation code'},
+                {'type':'info',   'msg':'  2. Run locally: python test_script.py'},
+                {'type':'info',   'msg':'  3. Update result manually via Test Execution page'},
+                {'type':'info',   'msg':''},
+                {'type':'warning','msg':'Cloud servers have no browser/display available.'},
+                {'type':'info',   'msg':'─' * 50},
+            ]
+            time.sleep(0.3)
+            for m in msgs:
+                execution_logs[exec_id].append(m)
+                time.sleep(0.1)
+            execution_logs[exec_id].append({'type':'done','status':'Not Run'})
+        t = threading.Thread(target=cloud_note)
+        t.daemon = True
+        t.start()
+        return jsonify({'exec_id': exec_id})
+
     exec_id = str(uuid.uuid4())
     execution_logs[exec_id] = []
 
