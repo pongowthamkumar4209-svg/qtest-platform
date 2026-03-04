@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { ArrowLeft, Edit2, Save, X, Trash2, Loader2, Plus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import AICodeAssistant from '@/components/AICodeAssistant';
 import Attachments from '@/components/Attachments';
 
@@ -18,6 +19,7 @@ export default function TestCaseDetail() {
   const [form, setForm] = useState<any>({});
   const [steps, setSteps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const { canWrite } = useAuth();
 
   const load = () => api.testcases.get(id!).then(t => {
     setTC(t); setForm({ name:t.name, description:t.description, type:t.type, priority:t.priority, status:t.status, automation_code:t.automation_code||'', automation_framework:t.automation_framework||'selenium' });

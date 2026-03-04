@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Search, ChevronRight, X, Loader2, Trash2, Edit2, Save } from 'lucide-react';
 
 const REQ_TYPES = ['Functional','Non-Functional','Business','Technical','Security','Performance'];
@@ -69,6 +70,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 }
 
 export default function Requirements() {
+  const { canWrite } = useAuth();
   const [reqs, setReqs] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -88,7 +90,7 @@ export default function Requirements() {
           <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, color: 'var(--text)' }}>Requirements</h1>
           <p style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--text3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>{reqs.length} total</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Requirement</button>
+        {canWrite && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Requirement</button>
       </div>
 
       <div className="relative">

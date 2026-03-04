@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, X, Loader2, ChevronRight, TestTube } from 'lucide-react';
 
 function CreateSuiteModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -101,6 +102,7 @@ function SuiteRow({ suite, onSelect }: { suite: any; onSelect: () => void }) {
 }
 
 export default function TestLab() {
+  const { canWrite, canExecute } = useAuth();
   const [suites, setSuites] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [instances, setInstances] = useState<any[]>([]);
@@ -126,7 +128,7 @@ export default function TestLab() {
           <h1 style={{ fontFamily:'Syne', fontWeight:800, fontSize:20, color:'var(--text)' }}>Test Lab</h1>
           <p style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>Test execution management</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Suite</button>
+        {canWrite && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Suite</button>
       </div>
 
       <div className="grid grid-cols-5 gap-4">
@@ -152,7 +154,7 @@ export default function TestLab() {
             <span style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.12em' }}>
               {selected ? `${selected.name} — Instances` : 'Select a suite'}
             </span>
-            {selected && <button onClick={() => setShowAdd(true)} className="btn-ghost" style={{ padding:'4px 10px', fontSize:11 }}><Plus size={11} /> Add TC</button>}
+            {selected && {canWrite && <button onClick={() => setShowAdd(true)} className="btn-ghost" style={{ padding:'4px 10px', fontSize:11 }}><Plus size={11} /> Add TC</button>}
           </div>
           {!selected && (
             <div className="flex flex-col items-center justify-center py-16" style={{ color:'var(--text3)' }}>

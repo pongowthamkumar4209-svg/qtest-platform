@@ -72,7 +72,14 @@ export default function AppLayout() {
           <div className="px-4 py-3 flex items-center justify-between">
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{user?.full_name || user?.username}</div>
-              <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: user?.role === 'admin' ? '#fbbf24' : 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{user?.role}</div>
+              <div style={{
+                fontFamily: 'JetBrains Mono', fontSize: 9, fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.1em',
+                color: user?.role === 'admin' ? '#fbbf24' : user?.role === 'lead' ? '#8b5cf6' : user?.role === 'tester' ? '#3b82f6' : '#64748b',
+                background: user?.role === 'admin' ? 'rgba(251,191,36,0.1)' : user?.role === 'lead' ? 'rgba(139,92,246,0.1)' : user?.role === 'tester' ? 'rgba(59,130,246,0.1)' : 'rgba(100,116,139,0.1)',
+                border: `1px solid ${user?.role === 'admin' ? 'rgba(251,191,36,0.25)' : user?.role === 'lead' ? 'rgba(139,92,246,0.25)' : user?.role === 'tester' ? 'rgba(59,130,246,0.25)' : 'rgba(100,116,139,0.25)'}`,
+                borderRadius: 3, padding: '1px 7px', marginTop: 3
+              }}>{user?.role}</div>
             </div>
             <button onClick={handleLogout} title="Logout"
               className="p-1.5 rounded transition-colors hover:bg-red-500/10"

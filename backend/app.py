@@ -238,6 +238,17 @@ def require_admin(req):
     if s['role'] != 'admin': return None, jsonify({'error':'Admin access required'}), 403
     return s, None, None
 
+# Role hierarchy: viewer < tester < lead < admin
+ROLE_LEVEL = {'viewer': 1, 'tester': 2, 'lead': 3, 'admin': 4}
+
+def require_role(req, min_role):
+    """Require at least min_role level."""
+    s = get_session(req)
+    if not s: return None, jsonify({'error': 'Unauthorized'}), 401
+    if ROLE_LEVEL.get(s['role'], 0) < ROLE_LEVEL.get(min_role, 99):
+        return None, jsonify({'error': f'Requires {min_role} role or higher'}), 403
+    return s, None, None
+
 @app.route('/api/health')
 def health():
     return jsonify({'status':'ok','service':'QTest Platform'})
@@ -389,7 +400,7 @@ def list_requirements():
 
 @app.route('/api/requirements', methods=['POST'])
 def create_requirement():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -430,7 +441,7 @@ def get_requirement(rid):
 
 @app.route('/api/requirements/<rid>', methods=['PUT'])
 def update_requirement(rid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -447,7 +458,7 @@ def update_requirement(rid):
 
 @app.route('/api/requirements/<rid>', methods=['DELETE'])
 def delete_requirement(rid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     conn = get_db()
     conn.execute("DELETE FROM requirements WHERE id=?", (rid,))
@@ -457,7 +468,7 @@ def delete_requirement(rid):
 
 @app.route('/api/requirements/<rid>/coverage', methods=['POST'])
 def add_coverage(rid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -486,7 +497,7 @@ def list_testcases():
 
 @app.route('/api/testcases', methods=['POST'])
 def create_testcase():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -530,7 +541,7 @@ def get_testcase(tid):
 
 @app.route('/api/testcases/<tid>', methods=['PUT'])
 def update_testcase(tid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -555,7 +566,7 @@ def update_testcase(tid):
 
 @app.route('/api/testcases/<tid>', methods=['DELETE'])
 def delete_testcase(tid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     conn = get_db()
     conn.execute("DELETE FROM test_cases WHERE id=?", (tid,))
@@ -582,7 +593,7 @@ def list_suites():
 
 @app.route('/api/testsuites', methods=['POST'])
 def create_suite():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -610,7 +621,7 @@ def list_instances(sid_):
 
 @app.route('/api/testsuites/<sid_>/instances', methods=['POST'])
 def add_instance(sid_):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -651,7 +662,7 @@ def get_instance(iid):
 
 @app.route('/api/instances/<iid>/steps/<step_id>', methods=['PUT'])
 def update_step_result(iid, step_id):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -678,7 +689,7 @@ def update_step_result(iid, step_id):
 
 @app.route('/api/instances/<iid>/status', methods=['PUT'])
 def update_instance_status(iid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -693,7 +704,7 @@ execution_logs = {}
 
 @app.route('/api/instances/<iid>/execute', methods=['POST'])
 def execute_instance(iid):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     conn = get_db()
     inst = row_to_dict(conn.execute("""
@@ -822,7 +833,7 @@ def list_defects():
 
 @app.route('/api/defects', methods=['POST'])
 def create_defect():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -853,7 +864,7 @@ def get_defect(did):
 
 @app.route('/api/defects/<did>', methods=['PUT'])
 def update_defect(did):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -870,7 +881,7 @@ def update_defect(did):
 
 @app.route('/api/defects/<did>', methods=['DELETE'])
 def delete_defect(did):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     conn = get_db()
     conn.execute("DELETE FROM defects WHERE id=?", (did,))
@@ -880,7 +891,7 @@ def delete_defect(did):
 
 @app.route('/api/defects/link', methods=['POST'])
 def link_defect():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     conn = get_db()
@@ -915,7 +926,7 @@ def dashboard_stats():
 # ─── AI Assistant proxy ───────────────────────────────────────────────────────
 @app.route('/api/ai/assist', methods=['POST'])
 def ai_assist():
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
     try:
@@ -1063,7 +1074,7 @@ def list_attachments(entity_type, entity_id):
 
 @app.route('/api/attachments/<entity_type>/<entity_id>', methods=['POST'])
 def upload_attachment(entity_type, entity_id):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'tester')
     if err: return err, code
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
@@ -1101,7 +1112,7 @@ def download_attachment(att_id):
 
 @app.route('/api/attachments/<att_id>', methods=['DELETE'])
 def delete_attachment(att_id):
-    s, err, code = require_auth(request)
+    s, err, code = require_role(request, 'lead')
     if err: return err, code
     conn = get_db()
     att = row_to_dict(conn.execute("SELECT * FROM attachments WHERE id=?", (att_id,)).fetchone())

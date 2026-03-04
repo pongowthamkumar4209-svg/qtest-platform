@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { ArrowLeft, Edit2, Save, X, Trash2, Plus, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import Attachments from '@/components/Attachments';
 
 const REQ_TYPES = ['Functional','Non-Functional','Business','Technical','Security','Performance'];
@@ -15,6 +16,7 @@ export default function RequirementDetail() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const { canWrite } = useAuth();
   const [allTCs, setAllTCs] = useState<any[]>([]);
   const [showLinkTC, setShowLinkTC] = useState(false);
 

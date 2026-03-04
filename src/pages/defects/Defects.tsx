@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import Attachments from '@/components/Attachments';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
@@ -73,6 +74,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 }
 
 export default function Defects() {
+  const { isTester, isLead } = useAuth();
   const [defects, setDefects] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -93,7 +95,7 @@ export default function Defects() {
           <h1 style={{ fontFamily:'Syne', fontWeight:800, fontSize:20, color:'var(--text)' }}>Defects</h1>
           <p style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>{defects.length} total</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> Log Defect</button>
+        {isTester && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> Log Defect</button>
       </div>
 
       <div className="flex gap-3">

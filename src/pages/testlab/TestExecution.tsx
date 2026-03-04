@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, STREAM_BASE } from '@/services/api';
 import { ArrowLeft, Play, CheckCircle, XCircle, MinusCircle, Loader2, Bug, Plus, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import Attachments from '@/components/Attachments';
 import ExecutionHistory from '@/components/ExecutionHistory';
 
@@ -21,6 +22,7 @@ export default function TestExecution() {
   const [stepActuals, setStepActuals] = useState<Record<string,string>>({});
   const [showDefect, setShowDefect] = useState(false);
   const [runRefresh, setRunRefresh] = useState(0);
+  const { canExecute, canWrite } = useAuth();
   const [defects, setDefects] = useState<any[]>([]);
   const consoleRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +78,7 @@ export default function TestExecution() {
               {executing ? 'Executing...' : 'Execute'}
             </button>
           )}
-          <button onClick={() => setShowDefect(true)} className="btn-ghost"><Bug size={12} /> Link Defect</button>
+          {canExecute && <button onClick={() => setShowDefect(true)} className="btn-ghost"><Bug size={12} /> Link Defect</button>
         </div>
       </div>
 
