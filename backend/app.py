@@ -768,7 +768,7 @@ def execute_instance(iid):
         log('info', f'Duration: {duration_ms}ms | Status: {status}')
 
         # Save log file
-        with open(log_file_path, 'w') as lf:
+        with open(log_file_path, 'w', encoding='utf-8') as lf:
             lf.write('\n'.join(log_lines))
 
         executed_at = datetime.utcnow().isoformat()
@@ -1140,7 +1140,7 @@ def get_run_log(run_id):
     log_file = run.get('log_file')
     if not log_file or not os.path.exists(log_file):
         return jsonify({'log': 'No log file available'})
-    with open(log_file, 'r') as f:
+    with open(log_file, 'r', encoding='utf-8') as f:
         return jsonify({'log': f.read(), 'log_file': os.path.basename(log_file)})
 
 @app.route('/api/runs/<run_id>/log/download')
