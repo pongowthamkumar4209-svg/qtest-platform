@@ -828,34 +828,48 @@ def execute_instance(iid):
     if not inst['automation_code']:
         return jsonify({'error':'No automation code found'}), 400
 
-    # Selenium/browser automation cannot run on Render cloud servers (no display/browser)
+    # Queue job for local agent to execute (agent runs on tester's PC with real browser)
     if _IS_RENDER:
         exec_id = str(uuid.uuid4())
+        job_id  = str(uuid.uuid4())
         exec_log_init(exec_id)
-        def cloud_note():
-            msgs = [
-                {'type':'warning','msg':'⚠ Cloud Execution Notice'},
-                {'type':'info',   'msg':'─' * 50},
-                {'type':'info',   'msg':'This test case uses Selenium browser automation.'},
-                {'type':'info',   'msg':'Browser automation requires a local machine with'},
-                {'type':'info',   'msg':'a browser and WebDriver installed.'},
-                {'type':'info',   'msg':''},
-                {'type':'info',   'msg':'To run this test:'},
-                {'type':'info',   'msg':'  1. Download the automation code'},
-                {'type':'info',   'msg':'  2. Run locally: python test_script.py'},
-                {'type':'info',   'msg':'  3. Update result manually via Test Execution page'},
-                {'type':'info',   'msg':''},
-                {'type':'warning','msg':'Cloud servers have no browser/display available.'},
-                {'type':'info',   'msg':'─' * 50},
-            ]
-            time.sleep(0.3)
-            for m in msgs:
-                exec_log_append(exec_id, m)
-                time.sleep(0.1)
-            exec_log_append(exec_id, {'type':'done','status':'Not Run','msg':''})
+        conn2 = get_db()
+        conn2.execute(
+            "INSERT INTO agent_jobs (id,exec_id,instance_id,code,framework,status,created_at) VALUES (?,?,?,?,?,?,?)",
+            (job_id, exec_id, iid, inst['automation_code'],
+             inst.get('automation_framework','selenium'),
+             'pending', datetime.utcnow().isoformat())
+        )
+        conn2.commit(); conn2.close()
+
+        exec_log_append(exec_id, {'type':'info','msg':'⏳ Waiting for local agent to pick up job...'})
+        exec_log_append(exec_id, {'type':'info','msg':'Make sure QTest Agent is running on your PC (system tray)'})
+
+        def wait_for_agent():
+            deadline = time.time() + 15
+            while time.time() < deadline:
+                time.sleep(2)
+                c2 = get_db()
+                row = c2.execute("SELECT status FROM agent_jobs WHERE id=?", (job_id,)).fetchone()
+                c2.close()
+                if row and row[0] != 'pending':
+                    exec_log_append(exec_id, {'type':'success','msg':'✓ Agent connected - execution started on your PC'})
+                    return
+            # No agent claimed - show instructions
+            exec_log_append(exec_id, {'type':'warning','msg':'⚠ No agent connected within 15 seconds'})
+            exec_log_append(exec_id, {'type':'info',   'msg':'─' * 50})
+            exec_log_append(exec_id, {'type':'info',   'msg':'Start the QTest Agent on your PC:'})
+            exec_log_append(exec_id, {'type':'info',   'msg':'  python qtest_agent_tray.py'})
+            exec_log_append(exec_id, {'type':'info',   'msg':'Wait for green dot, then click Execute again'})
+            exec_log_append(exec_id, {'type':'info',   'msg':'─' * 50})
+            exec_log_append(exec_id, {'type':'done',   'msg':'','status':'Not Run'})
             exec_log_done(exec_id)
-        t = threading.Thread(target=cloud_note)
-        t.daemon = True
+            # Cancel the pending job
+            c3 = get_db()
+            c3.execute("UPDATE agent_jobs SET status='cancelled' WHERE id=?", (job_id,))
+            c3.commit(); c3.close()
+
+        t = threading.Thread(target=wait_for_agent, daemon=True)
         t.start()
         return jsonify({'exec_id': exec_id})
 
