@@ -806,7 +806,7 @@ def execute_instance(iid):
             for m in msgs:
                 execution_logs[exec_id].append(m)
                 time.sleep(0.1)
-            execution_logs[exec_id].append({'type':'done','status':'Not Run'})
+            execution_logs[exec_id].append({'type':'done','status':'Not Run','msg':''})
         t = threading.Thread(target=cloud_note)
         t.daemon = True
         t.start()

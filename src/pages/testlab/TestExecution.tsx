@@ -39,14 +39,26 @@ export default function TestExecution() {
     setExecuting(true); setLogs([]);
     try {
       const res = await api.instances.execute(instanceId!);
-      const es = new EventSource(`${STREAM_BASE}/api/execute/stream/${res.exec_id}`);
+      const streamUrl = `${STREAM_BASE}/api/execute/stream/${res.exec_id}`;
+      const es = new EventSource(streamUrl);
       es.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        const prefix = data.type === 'success' ? '✓' : data.type === 'error' ? '✗' : '›';
-        setLogs(l => [...l, `${prefix} ${data.msg}`]);
-        if (data.type === 'done') { es.close(); setExecuting(false); load(); setRunRefresh(r => r + 1); }
+        if (e.data === ': keepalive') return; // skip keepalive pings
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'done') {
+            es.close(); setExecuting(false); load(); setRunRefresh(r => r + 1);
+            return;
+          }
+          if (!data.msg) return; // skip empty messages
+          const prefix = data.type === 'success' ? '✓' : data.type === 'error' ? '✗' : data.type === 'warning' ? '⚠' : '›';
+          setLogs(l => [...l, `${prefix} ${data.msg}`]);
+        } catch { /* ignore parse errors */ }
       };
-      es.onerror = () => { es.close(); setExecuting(false); setLogs(l => [...l, '✗ Stream error']); };
+      es.onerror = (e) => {
+        es.close();
+        setExecuting(false);
+        setLogs(l => [...l, '⚠ Connection to backend lost. Check execution history for results.']);
+      };
     } catch (err: any) { setLogs([`✗ ${err.message}`]); setExecuting(false); }
   };
 
