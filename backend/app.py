@@ -1168,10 +1168,14 @@ def download_run_log(run_id):
     return send_from_directory(os.path.dirname(log_file), os.path.basename(log_file),
                                as_attachment=True, download_name=f"run_{run['run_id']}.log")
 
+# Initialize DB when loaded by gunicorn
+init_db()
+
 if __name__ == '__main__':
     init_db()
+    port = int(os.environ.get('PORT', 8080))
     print("="*50)
-    print("  QTest Platform Backend")
-    print("  Running on http://localhost:8080")
+    print(f"  QTest Platform Backend")
+    print(f"  Running on http://0.0.0.0:{port}")
     print("="*50)
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/services/api';
+import { DEMO_SUITES, DEMO_INSTANCES } from '@/demo/demoData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, X, Loader2, ChevronRight, TestTube } from 'lucide-react';
 
@@ -103,6 +104,7 @@ function SuiteRow({ suite, onSelect }: { suite: any; onSelect: () => void }) {
 
 export default function TestLab() {
   const { canWrite, canExecute } = useAuth();
+  const isDemo = localStorage.getItem('qtest_demo') === 'true';
   const [suites, setSuites] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [instances, setInstances] = useState<any[]>([]);

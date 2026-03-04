@@ -20,8 +20,9 @@ function TabBtn({ id, active, icon: Icon, label, onClick }: any) {
     <button onClick={() => onClick(id)} className="flex items-center gap-2 px-4 transition-all"
       style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', paddingBottom: 10, paddingTop: 8,
         borderBottom: active ? '2px solid #c00000' : '2px solid transparent',
-        color: active ? 'var(--text)' : 'var(--text3)', background: 'none', border: 'none',
-        borderBottom: active ? '2px solid #c00000' : '2px solid transparent', cursor: 'pointer' }}>
+        borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+        color: active ? 'var(--text)' : 'var(--text3)', background: 'none',
+        cursor: 'pointer' }}>
       <Icon size={13} style={{ color: active ? '#e03030' : 'var(--text3)' }} />{label}
     </button>
   );

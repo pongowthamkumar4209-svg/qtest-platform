@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DEMO_STATS, DEMO_DEFECTS, DEMO_INSTANCES } from '@/demo/demoData';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/services/api';
@@ -8,7 +9,16 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => { api.dashboard.stats().then(setStats).catch(() => {}); }, []);
+  const isDemo = localStorage.getItem('qtest_demo') === 'true';
+  useEffect(() => {
+    if (isDemo) {
+      setStats({ requirements: DEMO_STATS.total_requirements, test_cases: DEMO_STATS.total_test_cases,
+        defects: DEMO_STATS.total_defects, test_suites: DEMO_STATS.total_suites,
+        passed: DEMO_STATS.passed, failed: DEMO_STATS.failed, not_run: DEMO_STATS.not_run });
+      return;
+    }
+    api.dashboard.stats().then(setStats).catch(() => {});
+  }, [isDemo]);
 
   const cards = stats ? [
     { label: 'Requirements', value: stats.requirements, icon: BookOpen, to: '/requirements', color: '#3b82f6' },

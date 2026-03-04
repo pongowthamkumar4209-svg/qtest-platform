@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DEMO_DEFECTS } from '@/demo/demoData';
 import { useAuth } from '@/contexts/AuthContext';
 import Attachments from '@/components/Attachments';
 import { Link, useParams, useNavigate } from 'react-router-dom';
@@ -75,6 +76,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
 export default function Defects() {
   const { isTester, isLead } = useAuth();
+  const isDemo = localStorage.getItem('qtest_demo') === 'true';
   const [defects, setDefects] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');

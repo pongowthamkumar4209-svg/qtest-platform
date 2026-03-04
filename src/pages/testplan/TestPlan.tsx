@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/services/api';
+import { DEMO_TEST_CASES } from '@/demo/demoData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Search, ChevronRight, X, Loader2, Trash2 } from 'lucide-react';
 import AICodeAssistant from '@/components/AICodeAssistant';
@@ -120,6 +121,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
 export default function TestPlan() {
   const { canWrite } = useAuth();
+  const isDemo = localStorage.getItem('qtest_demo') === 'true';
   const [tcs, setTCs] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
