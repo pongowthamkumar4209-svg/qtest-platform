@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import BackendStatus from '@/components/BackendStatus';
 import { Zap, LayoutDashboard, BookOpen, FlaskConical, TestTube, Bug, Settings, LogOut, Shield } from 'lucide-react';
 
 const nav = [
@@ -110,6 +111,7 @@ export default function AppLayout() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
+          <BackendStatus />
           <Outlet />
         </main>
 

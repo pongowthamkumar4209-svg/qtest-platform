@@ -18,7 +18,8 @@ export default function Requirements() {
 
   useEffect(() => {
     if (isDemo) { setReqs(DEMO_REQUIREMENTS); return; }
-    api.requirements.list().then(setReqs).catch(() => {});
+    const load = () => api.requirements.list().then(setReqs).catch(() => setTimeout(load, 5000));
+    load();
   }, [isDemo]);
 
   const filtered = reqs.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.req_id?.toLowerCase().includes(search.toLowerCase()));
