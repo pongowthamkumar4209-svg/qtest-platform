@@ -169,6 +169,16 @@ def init_db():
         FOREIGN KEY (defect_id) REFERENCES defects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL,
+        full_name TEXT,
+        created_at TEXT,
+        expires_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS req_traceability (
         id TEXT PRIMARY KEY,
         source_id TEXT NOT NULL,
@@ -227,11 +237,38 @@ def init_db():
     print("[DB] Initialized successfully")
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
-sessions = {}  # token -> {user_id, username, role}
+# Sessions stored in DB so they survive Render redeploys
 
 def get_session(req):
     token = req.headers.get('Authorization','').replace('Bearer ','').strip()
-    return sessions.get(token)
+    if not token:
+        return None
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM sessions WHERE token=? AND (expires_at IS NULL OR expires_at > ?)",
+        (token, datetime.utcnow().isoformat())
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def create_session(user):
+    token = str(uuid.uuid4())
+    expires = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO sessions (token,user_id,username,role,full_name,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
+        (token, user['id'], user['username'], user['role'], user['full_name'],
+         datetime.utcnow().isoformat(), expires)
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+def delete_session(token):
+    conn = get_db()
+    conn.execute("DELETE FROM sessions WHERE token=?", (token,))
+    conn.commit()
+    conn.close()
 
 def require_auth(req):
     s = get_session(req)
@@ -274,9 +311,7 @@ def login():
                  (datetime.utcnow().isoformat(), user['id']))
     conn.commit()
     conn.close()
-    token = str(uuid.uuid4())
-    sessions[token] = {'user_id':user['id'],'username':user['username'],
-                       'role':user['role'],'full_name':user['full_name']}
+    token = create_session(user)
     return jsonify({'token':token,'username':user['username'],
                     'role':user['role'],'full_name':user['full_name']})
 
@@ -302,7 +337,7 @@ def signup():
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
     token = request.headers.get('Authorization','').replace('Bearer ','').strip()
-    sessions.pop(token, None)
+    delete_session(token)
     return jsonify({'message':'Logged out'})
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
@@ -1044,7 +1079,7 @@ def system_stats():
         'total_defects': conn.execute("SELECT COUNT(*) FROM defects").fetchone()[0],
         'total_executions': conn.execute("SELECT COUNT(*) FROM test_instances WHERE status != 'Not Run'").fetchone()[0],
         'pass_rate': 0,
-        'active_sessions': len(sessions),
+        'active_sessions': get_db().execute("SELECT COUNT(*) FROM sessions WHERE expires_at > ?", (datetime.utcnow().isoformat(),)).fetchone()[0],
         'python_version': sys.version.split()[0],
     }
     ran = conn.execute("SELECT COUNT(*) FROM test_instances WHERE status IN ('Passed','Failed')").fetchone()[0]
