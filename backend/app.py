@@ -7,9 +7,15 @@ import sqlite3
 app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "qtest.db")
-ATTACHMENTS_DIR = os.path.join(os.path.dirname(__file__), "attachments")
-RUN_LOGS_DIR = os.path.join(os.path.dirname(__file__), "run_logs")
+# On Render, use /opt/render/project/data for persistent storage
+# Locally, use the backend folder itself
+_IS_RENDER = os.environ.get('RENDER', False)
+_DATA_DIR = '/opt/render/project/data' if _IS_RENDER else os.path.dirname(__file__)
+os.makedirs(_DATA_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(_DATA_DIR, "qtest.db")
+ATTACHMENTS_DIR = os.path.join(_DATA_DIR, "attachments")
+RUN_LOGS_DIR = os.path.join(_DATA_DIR, "run_logs")
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(RUN_LOGS_DIR, exist_ok=True)
 

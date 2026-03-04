@@ -8,7 +8,9 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: RENDER
+        value: true
     disk:
       name: qtest-data
-      mountPath: /opt/render/project/src
+      mountPath: /opt/render/project/data
       sizeGB: 1
