@@ -78,7 +78,7 @@ export default function TestExecution() {
               {executing ? 'Executing...' : 'Execute'}
             </button>
           )}
-          {canExecute && <button onClick={() => setShowDefect(true)} className="btn-ghost"><Bug size={12} /> Link Defect</button>
+          {canExecute && <button onClick={() => setShowDefect(true)} className="btn-ghost"><Bug size={12} /> Link Defect</button>}
         </div>
       </div>
 
