@@ -90,7 +90,7 @@ export default function Requirements() {
           <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 20, color: 'var(--text)' }}>Requirements</h1>
           <p style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--text3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>{reqs.length} total</p>
         </div>
-        {canWrite && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Requirement</button>
+        {canWrite && <button onClick={() => setShowCreate(true)} className="btn-primary"><Plus size={13} /> New Requirement</button>}
       </div>
 
       <div className="relative">
