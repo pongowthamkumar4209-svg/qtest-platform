@@ -926,6 +926,16 @@ def stream_execution(exec_id):
                     })
     return resp
 
+@app.route('/api/execute/poll/<exec_id>')
+def poll_execution(exec_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    logs = execution_logs.get(exec_id, None)
+    if logs is None:
+        return jsonify({'error': 'Not found'}), 404
+    done = any(e.get('type') == 'done' for e in logs)
+    return jsonify({'logs': logs, 'done': done})
+
 # ─── Defects ──────────────────────────────────────────────────────────────────
 def next_defect_id(conn):
     count = conn.execute("SELECT COUNT(*) FROM defects").fetchone()[0]

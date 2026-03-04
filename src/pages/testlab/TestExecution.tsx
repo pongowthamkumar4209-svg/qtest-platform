@@ -39,26 +39,29 @@ export default function TestExecution() {
     setExecuting(true); setLogs([]);
     try {
       const res = await api.instances.execute(instanceId!);
-      const streamUrl = `${STREAM_BASE}/api/execute/stream/${res.exec_id}`;
-      const es = new EventSource(streamUrl);
-      es.onmessage = (e) => {
-        if (e.data === ': keepalive') return; // skip keepalive pings
+      // Poll instead of SSE - avoids CORS issues with EventSource
+      let sent = 0;
+      const poll = async () => {
         try {
-          const data = JSON.parse(e.data);
-          if (data.type === 'done') {
-            es.close(); setExecuting(false); load(); setRunRefresh(r => r + 1);
-            return;
+          const result = await api.instances.pollExec(res.exec_id);
+          const newEntries = result.logs.slice(sent);
+          sent = result.logs.length;
+          for (const entry of newEntries) {
+            if (!entry.msg) continue;
+            const prefix = entry.type === 'success' ? '✓' : entry.type === 'error' ? '✗' : entry.type === 'warning' ? '⚠' : '›';
+            setLogs(l => [...l, `${prefix} ${entry.msg}`]);
           }
-          if (!data.msg) return; // skip empty messages
-          const prefix = data.type === 'success' ? '✓' : data.type === 'error' ? '✗' : data.type === 'warning' ? '⚠' : '›';
-          setLogs(l => [...l, `${prefix} ${data.msg}`]);
-        } catch { /* ignore parse errors */ }
+          if (result.done) {
+            setExecuting(false); load(); setRunRefresh(r => r + 1);
+          } else {
+            setTimeout(poll, 500);
+          }
+        } catch {
+          setExecuting(false);
+          setLogs(l => [...l, '⚠ Lost connection to backend.']);
+        }
       };
-      es.onerror = (e) => {
-        es.close();
-        setExecuting(false);
-        setLogs(l => [...l, '⚠ Connection to backend lost. Check execution history for results.']);
-      };
+      setTimeout(poll, 300);
     } catch (err: any) { setLogs([`✗ ${err.message}`]); setExecuting(false); }
   };
 

@@ -86,6 +86,7 @@ export const api = {
     updateStep:   (iid: string, sid: string, d: any) => req<any>(`/instances/${iid}/steps/${sid}`, { method: 'PUT', body: JSON.stringify(d) }),
     updateStatus: (iid: string, d: any)    => req<any>(`/instances/${iid}/status`,  { method: 'PUT', body: JSON.stringify(d) }),
     execute:      (iid: string)            => req<any>(`/instances/${iid}/execute`, { method: 'POST' }),
+    pollExec:     (exec_id: string)        => req<any>(`/execute/poll/${exec_id}`),
   },
   defects: {
     list:   ()              => req<any[]>('/defects'),
