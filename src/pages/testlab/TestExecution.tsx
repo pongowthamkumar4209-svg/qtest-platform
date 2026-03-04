@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, STREAM_BASE } from '@/services/api';
 import { ArrowLeft, Play, CheckCircle, XCircle, MinusCircle, Loader2, Bug, Plus, X } from 'lucide-react';
+import Attachments from '@/components/Attachments';
+import ExecutionHistory from '@/components/ExecutionHistory';
 
 function statusIcon(s: string) {
   if (s === 'Passed') return <CheckCircle size={14} style={{ color:'#22c55e' }} />;
@@ -18,6 +20,7 @@ export default function TestExecution() {
   const [executing, setExecuting] = useState(false);
   const [stepActuals, setStepActuals] = useState<Record<string,string>>({});
   const [showDefect, setShowDefect] = useState(false);
+  const [runRefresh, setRunRefresh] = useState(0);
   const [defects, setDefects] = useState<any[]>([]);
   const consoleRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +42,7 @@ export default function TestExecution() {
         const data = JSON.parse(e.data);
         const prefix = data.type === 'success' ? '✓' : data.type === 'error' ? '✗' : '›';
         setLogs(l => [...l, `${prefix} ${data.msg}`]);
-        if (data.type === 'done') { es.close(); setExecuting(false); load(); }
+        if (data.type === 'done') { es.close(); setExecuting(false); load(); setRunRefresh(r => r + 1); }
       };
       es.onerror = () => { es.close(); setExecuting(false); setLogs(l => [...l, '✗ Stream error']); };
     } catch (err: any) { setLogs([`✗ ${err.message}`]); setExecuting(false); }
@@ -168,6 +171,8 @@ export default function TestExecution() {
               </div>
             ))}
           </div>
+          <ExecutionHistory instanceId={inst.id} refreshTrigger={runRefresh} />
+          <Attachments entityType="instance" entityId={inst.id} readonly={false} />
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { ArrowLeft, Edit2, Save, X, Trash2, Loader2, Plus } from 'lucide-react';
 import AICodeAssistant from '@/components/AICodeAssistant';
+import Attachments from '@/components/Attachments';
 
 const TYPES = ['Manual','Automated'];
 const PRIORITIES = ['Critical','High','Medium','Low'];
@@ -193,6 +194,7 @@ export default function TestCaseDetail() {
         </div>
 
         <div className="space-y-3">
+          <Attachments entityType="testcase" entityId={tc?.id || ''} readonly={false} />
           <div className="card p-4 space-y-3">
             <h3 style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.12em' }}>Metadata</h3>
             {[['Created', tc.created_at?.slice(0,10)], ['Updated', tc.updated_at?.slice(0,10)], ['Author', tc.author]].map(([k,v]) => (

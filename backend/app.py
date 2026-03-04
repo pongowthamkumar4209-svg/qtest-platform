@@ -1,6 +1,6 @@
 import os, json, uuid, hashlib, subprocess, sys, threading, time
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
 from flask_cors import CORS
 import sqlite3
 
@@ -8,6 +8,10 @@ app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "qtest.db")
+ATTACHMENTS_DIR = os.path.join(os.path.dirname(__file__), "attachments")
+RUN_LOGS_DIR = os.path.join(os.path.dirname(__file__), "run_logs")
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+os.makedirs(RUN_LOGS_DIR, exist_ok=True)
 
 # ─── DB helpers ───────────────────────────────────────────────────────────────
 def get_db():
@@ -166,6 +170,31 @@ def init_db():
         link_type TEXT DEFAULT 'covers',
         FOREIGN KEY (source_id) REFERENCES requirements(id) ON DELETE CASCADE,
         FOREIGN KEY (target_id) REFERENCES requirements(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS attachments (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        file_size INTEGER,
+        mime_type TEXT,
+        uploaded_by TEXT,
+        uploaded_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS execution_runs (
+        id TEXT PRIMARY KEY,
+        run_id TEXT UNIQUE,
+        instance_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        executed_by TEXT,
+        executed_at TEXT,
+        duration_ms INTEGER,
+        log_file TEXT,
+        framework TEXT,
+        FOREIGN KEY (instance_id) REFERENCES test_instances(id) ON DELETE CASCADE
     );
     """)
 
@@ -681,39 +710,77 @@ def execute_instance(iid):
 
     def run_code():
         code_str = inst['automation_code']
+        start_time = time.time()
+        run_id = str(uuid.uuid4())
+        run_seq_conn = get_db()
+        run_count = run_seq_conn.execute("SELECT COUNT(*) FROM execution_runs WHERE instance_id=?", (iid,)).fetchone()[0]
+        run_seq_conn.close()
+        run_seq = f"RUN-{run_count+1:04d}"
+
+        # Prepare log file
+        inst_log_dir = os.path.join(RUN_LOGS_DIR, iid)
+        os.makedirs(inst_log_dir, exist_ok=True)
+        log_filename = f"{run_seq}_{exec_id[:8]}.log"
+        log_file_path = os.path.join(inst_log_dir, log_filename)
+        log_lines = []
+
+        def log(type_, msg):
+            execution_logs[exec_id].append({'type': type_, 'msg': msg})
+            ts = datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]
+            log_lines.append(f"[{ts}] [{type_.upper()}] {msg}")
+
         tmp_file = os.path.join(os.environ.get('TEMP', os.path.dirname(__file__)), f"qtest_exec_{exec_id}.py")
         with open(tmp_file, 'w') as f:
             f.write(code_str)
-        execution_logs[exec_id].append({'type':'info','msg':f'Starting execution of {iid}...'})
-        execution_logs[exec_id].append({'type':'info','msg':f'Framework: {inst["automation_framework"]}'})
+
+        log('info', f'Run: {run_seq} | Instance: {iid}')
+        log('info', f'Framework: {inst["automation_framework"]}')
+        log('info', f'Started at: {datetime.utcnow().isoformat()}')
+        log('info', '-' * 50)
+
         try:
             result = subprocess.run([sys.executable, tmp_file],
                                     capture_output=True, text=True, timeout=120)
             for line in result.stdout.split('\n'):
                 if line.strip():
-                    execution_logs[exec_id].append({'type':'info','msg':line})
+                    log('info', line)
             if result.returncode == 0:
-                execution_logs[exec_id].append({'type':'success','msg':'✓ Execution completed successfully'})
+                log('success', '✓ Execution completed successfully')
                 status = 'Passed'
             else:
                 for line in result.stderr.split('\n'):
                     if line.strip():
-                        execution_logs[exec_id].append({'type':'error','msg':line})
-                execution_logs[exec_id].append({'type':'error','msg':'✗ Execution failed'})
+                        log('error', line)
+                log('error', '✗ Execution failed')
                 status = 'Failed'
         except subprocess.TimeoutExpired:
-            execution_logs[exec_id].append({'type':'error','msg':'✗ Execution timed out (120s)'})
+            log('error', '✗ Execution timed out (120s)')
             status = 'Failed'
         except Exception as e:
-            execution_logs[exec_id].append({'type':'error','msg':f'✗ Error: {str(e)}'})
+            log('error', f'✗ Error: {str(e)}')
             status = 'Failed'
         finally:
             try: os.remove(tmp_file)
             except: pass
-        # update instance
+
+        duration_ms = int((time.time() - start_time) * 1000)
+        log('info', '-' * 50)
+        log('info', f'Duration: {duration_ms}ms | Status: {status}')
+
+        # Save log file
+        with open(log_file_path, 'w') as lf:
+            lf.write('\n'.join(log_lines))
+
+        executed_at = datetime.utcnow().isoformat()
+
+        # Save execution run record
         db = get_db()
+        db.execute("""INSERT INTO execution_runs (id,run_id,instance_id,status,executed_by,executed_at,duration_ms,log_file,framework)
+                      VALUES (?,?,?,?,?,?,?,?,?)""",
+                   (run_id, run_seq, iid, status, s['username'], executed_at,
+                    duration_ms, log_file_path, inst['automation_framework']))
         db.execute("UPDATE test_instances SET status=?, executed_by=?, executed_at=? WHERE id=?",
-                   (status, s['username'], datetime.utcnow().isoformat(), iid))
+                   (status, s['username'], executed_at, iid))
         db.commit()
         db.close()
         execution_logs[exec_id].append({'type':'done','msg':status})
@@ -900,7 +967,7 @@ def get_table_data(table_name):
     # Whitelist check - only allow known table names
     allowed = ['users','requirements','test_cases','test_steps','test_suites',
                'test_instances','step_results','defects','defect_links',
-               'req_test_coverage','req_traceability','projects']
+               'req_test_coverage','req_traceability','projects','attachments','execution_runs']
     if table_name not in allowed:
         return jsonify({'error': 'Table not allowed'}), 400
     page = int(request.args.get('page', 1))
@@ -975,6 +1042,120 @@ def system_stats():
         "SELECT defect_id, name, status, reported_by, created_at FROM defects ORDER BY created_at DESC LIMIT 5").fetchall())
     conn.close()
     return jsonify(stats)
+
+
+# ─── Attachments ──────────────────────────────────────────────────────────────
+ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','pdf','doc','docx','xls','xlsx','txt','log','zip','csv','mp4','webm'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/attachments/<entity_type>/<entity_id>', methods=['GET'])
+def list_attachments(entity_type, entity_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    rows = rows_to_list(conn.execute(
+        "SELECT * FROM attachments WHERE entity_type=? AND entity_id=? ORDER BY uploaded_at DESC",
+        (entity_type, entity_id)).fetchall())
+    conn.close()
+    return jsonify(rows)
+
+@app.route('/api/attachments/<entity_type>/<entity_id>', methods=['POST'])
+def upload_attachment(entity_type, entity_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    file = request.files['file']
+    if not file.filename or not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed'}), 400
+    att_id = str(uuid.uuid4())
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    stored_name = f"{att_id}.{ext}"
+    entity_dir = os.path.join(ATTACHMENTS_DIR, entity_type, entity_id)
+    os.makedirs(entity_dir, exist_ok=True)
+    file_path = os.path.join(entity_dir, stored_name)
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+    conn = get_db()
+    conn.execute("""INSERT INTO attachments (id,entity_type,entity_id,filename,original_name,file_size,mime_type,uploaded_by,uploaded_at)
+                    VALUES (?,?,?,?,?,?,?,?,?)""",
+        (att_id, entity_type, entity_id, stored_name, file.filename, file_size,
+         file.content_type, s['username'], datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': att_id, 'original_name': file.filename, 'file_size': file_size}), 201
+
+@app.route('/api/attachments/<att_id>/download')
+def download_attachment(att_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    att = row_to_dict(conn.execute("SELECT * FROM attachments WHERE id=?", (att_id,)).fetchone())
+    conn.close()
+    if not att: return jsonify({'error': 'Not found'}), 404
+    entity_dir = os.path.join(ATTACHMENTS_DIR, att['entity_type'], att['entity_id'])
+    return send_from_directory(entity_dir, att['filename'], as_attachment=True,
+                               download_name=att['original_name'])
+
+@app.route('/api/attachments/<att_id>', methods=['DELETE'])
+def delete_attachment(att_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    att = row_to_dict(conn.execute("SELECT * FROM attachments WHERE id=?", (att_id,)).fetchone())
+    if not att:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    entity_dir = os.path.join(ATTACHMENTS_DIR, att['entity_type'], att['entity_id'])
+    file_path = os.path.join(entity_dir, att['filename'])
+    try:
+        os.remove(file_path)
+    except: pass
+    conn.execute("DELETE FROM attachments WHERE id=?", (att_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+# ─── Execution Runs (history) ──────────────────────────────────────────────────
+@app.route('/api/instances/<iid>/runs')
+def list_runs(iid):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    runs = rows_to_list(conn.execute(
+        "SELECT * FROM execution_runs WHERE instance_id=? ORDER BY executed_at DESC", (iid,)).fetchall())
+    conn.close()
+    return jsonify(runs)
+
+@app.route('/api/runs/<run_id>/log')
+def get_run_log(run_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    run = row_to_dict(conn.execute("SELECT * FROM execution_runs WHERE id=?", (run_id,)).fetchone())
+    conn.close()
+    if not run: return jsonify({'error': 'Not found'}), 404
+    log_file = run.get('log_file')
+    if not log_file or not os.path.exists(log_file):
+        return jsonify({'log': 'No log file available'})
+    with open(log_file, 'r') as f:
+        return jsonify({'log': f.read(), 'log_file': os.path.basename(log_file)})
+
+@app.route('/api/runs/<run_id>/log/download')
+def download_run_log(run_id):
+    s, err, code = require_auth(request)
+    if err: return err, code
+    conn = get_db()
+    run = row_to_dict(conn.execute("SELECT * FROM execution_runs WHERE id=?", (run_id,)).fetchone())
+    conn.close()
+    if not run: return jsonify({'error': 'Not found'}), 404
+    log_file = run.get('log_file')
+    if not log_file or not os.path.exists(log_file):
+        return jsonify({'error': 'Log file not found'}), 404
+    return send_from_directory(os.path.dirname(log_file), os.path.basename(log_file),
+                               as_attachment=True, download_name=f"run_{run['run_id']}.log")
 
 if __name__ == '__main__':
     init_db()

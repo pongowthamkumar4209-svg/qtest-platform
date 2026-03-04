@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Attachments from '@/components/Attachments';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { Plus, Search, ChevronRight, X, Loader2, Edit2, Save, Trash2, ArrowLeft } from 'lucide-react';
@@ -242,6 +243,7 @@ export function DefectDetail() {
           )}
         </div>
 
+        <Attachments entityType="defect" entityId={defect.id} readonly={false} />
         <div className="card p-4 space-y-3">
           <h3 style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.12em' }}>Metadata</h3>
           {[['Bug ID',defect.defect_id],['Reported By',defect.reported_by],['Created',defect.created_at?.slice(0,10)],['Updated',defect.updated_at?.slice(0,10)]].map(([k,v]) => (

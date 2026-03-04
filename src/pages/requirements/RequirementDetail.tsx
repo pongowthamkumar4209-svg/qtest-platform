@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { ArrowLeft, Edit2, Save, X, Trash2, Plus, Loader2 } from 'lucide-react';
+import Attachments from '@/components/Attachments';
 
 const REQ_TYPES = ['Functional','Non-Functional','Business','Technical','Security','Performance'];
 const PRIORITIES = ['Critical','High','Medium','Low'];
@@ -162,6 +163,7 @@ export default function RequirementDetail() {
 
         {/* Meta panel */}
         <div className="space-y-3">
+          <Attachments entityType="requirement" entityId={req.id} readonly={false} />
           <div className="card p-4 space-y-3">
             <h3 style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.12em', textTransform:'uppercase' }}>Metadata</h3>
             {[['Created', req.created_at?.slice(0,10)], ['Updated', req.updated_at?.slice(0,10)], ['Author', req.author]].map(([k,v]) => (
