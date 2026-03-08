@@ -769,8 +769,17 @@ def update_step_result(iid, step_id):
     elif all(s == 'Passed' for s in statuses): inst_status = 'Passed'
     elif any(s in ['Passed','Failed'] for s in statuses): inst_status = 'In Progress'
     else: inst_status = 'Not Run'
+    executed_at = datetime.utcnow().isoformat()
     conn.execute("UPDATE test_instances SET status=?, executed_by=?, executed_at=? WHERE id=?",
-                 (inst_status, s['username'], datetime.utcnow().isoformat(), iid))
+                 (inst_status, s['username'], executed_at, iid))
+    # Create an execution_runs record when all steps are resolved (terminal status)
+    if inst_status in ('Passed', 'Failed'):
+        run_id = str(uuid.uuid4())
+        run_count = conn.execute("SELECT COUNT(*) FROM execution_runs WHERE instance_id=?", (iid,)).fetchone()[0]
+        run_seq = f"RUN-{run_count+1:04d}-{run_id[:6]}"
+        conn.execute("""INSERT INTO execution_runs (id,run_id,instance_id,status,executed_by,executed_at,duration_ms,framework)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                     (run_id, run_seq, iid, inst_status, s['username'], executed_at, 0, 'manual'))
     conn.commit()
     conn.close()
     return jsonify({'message':'Updated', 'instance_status': inst_status})
@@ -780,9 +789,18 @@ def update_instance_status(iid):
     s, err, code = require_role(request, 'tester')
     if err: return err, code
     data = request.json
+    executed_at = datetime.utcnow().isoformat()
     conn = get_db()
     conn.execute("UPDATE test_instances SET status=?, executed_by=?, executed_at=?, notes=? WHERE id=?",
-                 (data['status'], s['username'], datetime.utcnow().isoformat(), data.get('notes',''), iid))
+                 (data['status'], s['username'], executed_at, data.get('notes',''), iid))
+    # Log to execution_runs for history tracking
+    if data['status'] in ('Passed', 'Failed', 'Blocked', 'Not Run'):
+        run_id = str(uuid.uuid4())
+        run_count = conn.execute("SELECT COUNT(*) FROM execution_runs WHERE instance_id=?", (iid,)).fetchone()[0]
+        run_seq = f"RUN-{run_count+1:04d}-{run_id[:6]}"
+        conn.execute("""INSERT INTO execution_runs (id,run_id,instance_id,status,executed_by,executed_at,duration_ms,framework)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                     (run_id, run_seq, iid, data['status'], s['username'], executed_at, 0, 'manual'))
     conn.commit()
     conn.close()
     return jsonify({'message':'Updated'})
