@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#0d0d0d"/>
+  <rect width="32" height="32" rx="6" fill="url(#bg)"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a0000"/>
+      <stop offset="100%" stop-color="#0d0d0d"/>
+    </linearGradient>
+  </defs>
+  <!-- Q letter -->
+  <text x="16" y="22" font-family="Georgia, serif" font-size="22" font-weight="900"
+    text-anchor="middle" fill="#c00000">Q</text>
+  <!-- Red underline accent -->
+  <rect x="8" y="25" width="16" height="2" rx="1" fill="#c00000" opacity="0.6"/>
+</svg>

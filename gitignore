@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+dist/
+
+# Backend runtime files
+backend/qtest.db
+backend/__pycache__/
+backend/*.pyc
+backend/attachments/
+backend/run_logs/
+
+# Env & secrets
+.env
+*.txt
+!backend/requirements.txt
+
+# OS
+.DS_Store
+Thumbs.db

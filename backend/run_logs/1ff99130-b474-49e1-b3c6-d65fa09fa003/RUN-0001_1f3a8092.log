@@ -1,0 +1,14 @@
+[19:03:17.291] [INFO] Run: RUN-0001 | Instance: 1ff99130-b474-49e1-b3c6-d65fa09fa003
+[19:03:17.306] [INFO] Framework: selenium
+[19:03:17.324] [INFO] Started at: 2026-03-08T19:03:17.306540
+[19:03:17.344] [INFO] --------------------------------------------------
+[19:03:33.817] [INFO] Starting Edge browser...
+[19:03:33.835] [INFO] Navigating to Google...
+[19:03:33.853] [INFO] Page loaded successfully!
+[19:03:33.871] [INFO] Current URL: https://www.google.com/
+[19:03:33.890] [INFO] Page title: Google
+[19:03:33.904] [INFO] Closing browser...
+[19:03:33.919] [INFO] Browser closed successfully!
+[19:03:33.933] [SUCCESS] ✓ Execution completed successfully
+[19:03:33.949] [INFO] --------------------------------------------------
+[19:03:33.962] [INFO] Duration: 16666ms | Status: Passed

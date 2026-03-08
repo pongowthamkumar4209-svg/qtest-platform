@@ -1,0 +1,16 @@
+[19:01:11.840] [INFO] Run: RUN-0004 | Instance: d79e5e3f-e75a-41f3-982e-f137557b7692
+[19:01:11.857] [INFO] Framework: selenium
+[19:01:11.871] [INFO] Started at: 2026-03-08T19:01:11.857569
+[19:01:11.884] [INFO] --------------------------------------------------
+[19:01:56.848] [INFO] Opening application...
+[19:01:56.865] [INFO] Login submitted successfully.
+[19:01:56.879] [INFO] Looking for DEMO ACCESS button...
+[19:01:56.919] [INFO] DEMO ACCESS button clicked successfully.
+[19:01:56.956] [INFO] Looking for Jira to ALM requirement sync option...
+[19:01:56.971] [INFO] Jira to ALM requirement sync option clicked successfully.
+[19:01:56.985] [INFO] Looking for RUN DEMO SYNC button...
+[19:01:57.000] [INFO] RUN DEMO SYNC button clicked successfully.
+[19:01:57.019] [INFO] Waiting for 10 seconds...
+[19:01:57.036] [SUCCESS] ✓ Execution completed successfully
+[19:01:57.051] [INFO] --------------------------------------------------
+[19:01:57.068] [INFO] Duration: 45221ms | Status: Passed
