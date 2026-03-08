@@ -1,8 +1,5 @@
 node_modules/ 
-dist/ 
 backend/qtest.db 
-backend/__pycache__/ 
-*.pyc 
+backend/attachments/ 
 .env 
-claude api key.txt 
-*.txt 
+backend/run_logs/ 
