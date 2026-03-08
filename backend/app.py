@@ -475,7 +475,7 @@ def list_projects():
 # ─── Requirements ─────────────────────────────────────────────────────────────
 def next_req_id(conn):
     count = conn.execute("SELECT COUNT(*) FROM requirements").fetchone()[0]
-    return f"REQ-{count+1:04d}"
+    return f"REQ-{count+1:04d}-{uuid.uuid4().hex[:4]}"
 
 @app.route('/api/requirements')
 def list_requirements():
@@ -572,7 +572,7 @@ def add_coverage(rid):
 # ─── Test Cases ───────────────────────────────────────────────────────────────
 def next_tc_id(conn):
     count = conn.execute("SELECT COUNT(*) FROM test_cases").fetchone()[0]
-    return f"TC-{count+1:04d}"
+    return f"TC-{count+1:04d}-{uuid.uuid4().hex[:4]}"
 
 @app.route('/api/testcases')
 def list_testcases():
@@ -665,7 +665,7 @@ def delete_testcase(tid):
 # ─── Test Suites ──────────────────────────────────────────────────────────────
 def next_suite_id(conn):
     count = conn.execute("SELECT COUNT(*) FROM test_suites").fetchone()[0]
-    return f"TS-{count+1:04d}"
+    return f"TS-{count+1:04d}-{uuid.uuid4().hex[:4]}"
 
 @app.route('/api/testsuites')
 def list_suites():
@@ -715,7 +715,7 @@ def add_instance(sid_):
     conn = get_db()
     count = conn.execute("SELECT COUNT(*) FROM test_instances WHERE suite_id=?", (sid_,)).fetchone()[0]
     iid = str(uuid.uuid4())
-    inst_id = f"TI-{count+1:04d}"
+    inst_id = f"TI-{count+1:04d}-{iid[:6]}"  # unique: count + uuid prefix
     conn.execute("INSERT INTO test_instances (id,instance_id,suite_id,test_case_id,status,assigned_to) VALUES (?,?,?,?,?,?)",
                  (iid, inst_id, sid_, data['test_case_id'], 'Not Run', data.get('assigned_to','')))
     conn.commit()
@@ -1060,7 +1060,7 @@ def agent_complete():
         )
         # Save execution run record
         run_count = conn.execute("SELECT COUNT(*) FROM execution_runs WHERE instance_id=?", (instance_id,)).fetchone()[0]
-        run_seq   = f"RUN-{run_count+1:04d}"
+        run_seq   = f"RUN-{run_count+1:04d}-{uuid.uuid4().hex[:6]}"
         conn.execute(
             "INSERT INTO execution_runs (id,run_id,instance_id,status,executed_by,executed_at,duration_ms,framework) VALUES (?,?,?,?,?,?,?,?)",
             (str(uuid.uuid4()), run_seq, instance_id, status, executed_by,
@@ -1077,7 +1077,7 @@ def agent_ping():
 # ─── Defects ──────────────────────────────────────────────────────────────────
 def next_defect_id(conn):
     count = conn.execute("SELECT COUNT(*) FROM defects").fetchone()[0]
-    return f"BUG-{count+1:04d}"
+    return f"BUG-{count+1:04d}-{uuid.uuid4().hex[:4]}"
 
 @app.route('/api/defects')
 def list_defects():
